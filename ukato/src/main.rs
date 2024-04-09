@@ -2,6 +2,7 @@ use clap::{Args, Parser, Subcommand};
 use console::Style;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 use serde_derive::{Deserialize, Serialize};
+use std::fs;
 
 /// Simple CLI to create and manage notes using your favorite text editor.
 #[derive(Parser)]
@@ -16,8 +17,8 @@ enum Commands {
     Init,
     /// Creates a new note
     Create(Create),
-    // /// Gets the most recent note
-    // Recent,
+    /// Get list of notes
+    List,
 }
 
 #[derive(Args, Debug)]
@@ -29,15 +30,20 @@ struct Create {
 fn create_file(args: Create) {
     let cfg: Config = confy::load("ukato", None).unwrap();
     let path = std::path::Path::new(&cfg.directory);
-    let extension = ".md".to_string();
-    let full_path = path.join([args.name, extension].join(""));
+    let mut full_path;
+
+    if args.name.ends_with(".md") {
+        full_path = path.join(args.name);
+    } else {
+        let extension = ".md".to_string();
+        full_path = path.join([args.name, extension].join(""));
+    }
 
     if !std::path::Path::is_dir(path) {
         std::fs::create_dir(path).unwrap();
     }
 
     let mut viewer_handle = std::process::Command::new("inlyne")
-        .arg("-c inlyne.toml")
         .arg(full_path.clone())
         .spawn()
         .unwrap();
@@ -119,12 +125,38 @@ fn init_config() {
     confy::store("ukato", None, my_config).unwrap();
 }
 
+fn list_notes() {
+    let cfg: Config = confy::load("ukato", None).unwrap();
+    let dir = std::path::Path::new(&cfg.directory);
+
+    let paths = fs::read_dir(dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+
+    let theme = ColorfulTheme {
+        values_style: Style::new().yellow().dim(),
+        ..ColorfulTheme::default()
+    };
+    let note_index = Select::with_theme(&theme)
+        .with_prompt("Your notes:")
+        .default(0)
+        .items(&paths[..])
+        .interact()
+        .unwrap();
+
+    create_file(Create {
+        name: paths[note_index].clone(),
+    })
+}
+
 fn main() {
     let cli = Cli::parse();
 
     match cli.command {
         Commands::Init => init_config(),
         Commands::Create(args) => create_file(args),
-        // Commands::Recent => open_recent_file(),
+        Commands::List => list_notes(),
     }
 }
