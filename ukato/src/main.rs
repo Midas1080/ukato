@@ -29,10 +29,6 @@ fn create_file(args: Create) {
     let cfg: Config = confy::load("ukato", None).unwrap();
     let path = std::path::Path::new(&cfg.directory);
     let extension = ".md".to_string();
-    
-    if !std::path::Path::is_dir(path) {
-        std::fs::create_dir(path).unwrap();
-    }
 
     std::process::Command::new(cfg.editor)
         .arg(path.join([args.name, extension].join("")))
