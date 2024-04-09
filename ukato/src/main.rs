@@ -16,6 +16,8 @@ enum Commands {
     Init,
     /// Creates a new note
     Create(Create),
+    // /// Gets the most recent note
+    // Recent,
 }
 
 #[derive(Args, Debug)]
@@ -28,23 +30,45 @@ fn create_file(args: Create) {
     let cfg: Config = confy::load("ukato", None).unwrap();
     let path = std::path::Path::new(&cfg.directory);
     let extension = ".md".to_string();
+    let full_path = path.join([args.name, extension].join(""));
 
     if !std::path::Path::is_dir(path) {
         std::fs::create_dir(path).unwrap();
     }
 
     let mut viewer_handle = std::process::Command::new("inlyne")
-        .args(["-c inlyne.toml", "/Users/rutger/notes/test.md"])
+        .arg("-c inlyne.toml")
+        .arg(full_path.clone())
         .spawn()
         .unwrap();
 
     std::process::Command::new(cfg.editor)
-        .arg(path.join([args.name, extension].join("")))
+        .arg(full_path.clone())
         .status()
         .expect("Something went wrong.");
 
     let _ = viewer_handle.kill();
 }
+
+// fn open_recent_file() {
+//     let cfg: Config = confy::load("ukato", None).unwrap();
+//     let path = std::path::Path::new(&cfg.directory);
+
+//     let entries = std::fs::read_dir(path).unwrap();
+
+//     // Extract the filenames from the directory entries and store them in a vector
+//     let file_names: Vec<SystemTime> = entries
+//         .filter_map(|entry| {
+//             let path = entry.ok()?.path();
+//             let metadata = std::fs::metadata(path).unwrap();
+//             if let Ok(time) = metadata.modified() {
+//                 println!("{time:?}");
+//             } else {
+//                 println!("Not supported on this platform");
+//             }
+//         })
+//         .collect();
+// }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
@@ -101,5 +125,6 @@ fn main() {
     match cli.command {
         Commands::Init => init_config(),
         Commands::Create(args) => create_file(args),
+        // Commands::Recent => open_recent_file(),
     }
 }
