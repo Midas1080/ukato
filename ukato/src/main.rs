@@ -2,6 +2,7 @@ use clap::{Args, Parser, Subcommand};
 use console::Style;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 use serde_derive::{Deserialize, Serialize};
+use std::{fs};
 
 /// Simple CLI to create and manage notes using your favorite text editor.
 #[derive(Parser)]
@@ -16,6 +17,7 @@ enum Commands {
     Init,
     /// Creates a new note
     Create(Create),
+    List,
 }
 
 #[derive(Args, Debug)]
@@ -84,11 +86,34 @@ fn init_config() {
     confy::store("ukato", None, my_config).unwrap();
 }
 
+fn list_notes() {
+    let cfg: Config = confy::load("ukato", None).unwrap();
+    let dir = std::path::Path::new(&cfg.directory);
+
+   let paths = fs::read_dir(dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+    
+    let theme = ColorfulTheme {
+        values_style: Style::new().yellow().dim(),
+        ..ColorfulTheme::default()
+    };
+    let note_index = Select::with_theme(&theme)
+        .with_prompt("Your notes:")
+        .default(0)
+        .items(&paths[..])
+        .interact()
+        .unwrap();
+}
+
 fn main() {
     let cli = Cli::parse();
 
     match cli.command {
         Commands::Init => init_config(),
         Commands::Create(args) => create_file(args),
+        Commands::List => list_notes(),
     }
 }
