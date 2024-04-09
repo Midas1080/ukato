@@ -33,10 +33,17 @@ fn create_file(args: Create) {
         std::fs::create_dir(path).unwrap();
     }
 
+    let mut viewer_handle = std::process::Command::new("inlyne")
+        .args(["-c inlyne.toml", "/Users/rutger/notes/test.md"])
+        .spawn()
+        .unwrap();
+
     std::process::Command::new(cfg.editor)
         .arg(path.join([args.name, extension].join("")))
         .status()
         .expect("Something went wrong.");
+
+    let _ = viewer_handle.kill();
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -60,10 +67,14 @@ fn init_config() {
         values_style: Style::new().yellow().dim(),
         ..ColorfulTheme::default()
     };
+
+    let cfg: Config = confy::load("ukato", None).unwrap();
+
     println!("Welcome to the setup wizard");
 
     let directory = Input::with_theme(&theme)
-        .with_prompt("Directory")
+        .with_prompt("Notes directory")
+        .with_initial_text(cfg.directory)
         .interact()
         .unwrap();
 
