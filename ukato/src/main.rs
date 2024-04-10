@@ -109,7 +109,7 @@ fn init_config() {
         .interact()
         .unwrap();
 
-    let items = &["vim", "nano", "emacs"];
+    let items = &["vim", "nano", "emacs", "micro"];
 
     let editor_index = Select::with_theme(&theme)
         .with_prompt("Select your preferred editor")
