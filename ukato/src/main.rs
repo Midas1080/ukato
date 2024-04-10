@@ -19,6 +19,8 @@ enum Commands {
     Create(Create),
     /// Get list of notes
     List,
+    /// Get most recent note
+    Recent,
 }
 
 #[derive(Args, Debug)]
@@ -27,10 +29,10 @@ struct Create {
     name: String,
 }
 
-fn create_file(args: Create) {
+fn create_or_open_file(args: Create) {
     let cfg: Config = confy::load("ukato", None).unwrap();
     let path = std::path::Path::new(&cfg.directory);
-    let mut full_path;
+    let full_path;
 
     if args.name.ends_with(".md") {
         full_path = path.join(args.name);
@@ -56,25 +58,24 @@ fn create_file(args: Create) {
     let _ = viewer_handle.kill();
 }
 
-// fn open_recent_file() {
-//     let cfg: Config = confy::load("ukato", None).unwrap();
-//     let path = std::path::Path::new(&cfg.directory);
+fn open_recent_file() {
+    let cfg: Config = confy::load("ukato", None).unwrap();
+    let path = std::path::Path::new(&cfg.directory);
 
-//     let entries = std::fs::read_dir(path).unwrap();
+    let last_modified_file = std::fs::read_dir(path)
+        .expect("Couldn't access local directory")
+        .flatten() // Remove failed
+        .filter(|f| f.metadata().unwrap().is_file()) // Filter out directories (only consider files)
+        .max_by_key(|x| x.metadata().unwrap().modified().unwrap()) // Get the most recently modified file
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .into_owned();
 
-//     // Extract the filenames from the directory entries and store them in a vector
-//     let file_names: Vec<SystemTime> = entries
-//         .filter_map(|entry| {
-//             let path = entry.ok()?.path();
-//             let metadata = std::fs::metadata(path).unwrap();
-//             if let Ok(time) = metadata.modified() {
-//                 println!("{time:?}");
-//             } else {
-//                 println!("Not supported on this platform");
-//             }
-//         })
-//         .collect();
-// }
+    create_or_open_file(Create {
+        name: last_modified_file,
+    })
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
@@ -146,7 +147,7 @@ fn list_notes() {
         .interact()
         .unwrap();
 
-    create_file(Create {
+    create_or_open_file(Create {
         name: paths[note_index].clone(),
     })
 }
@@ -156,7 +157,8 @@ fn main() {
 
     match cli.command {
         Commands::Init => init_config(),
-        Commands::Create(args) => create_file(args),
+        Commands::Create(args) => create_or_open_file(args),
         Commands::List => list_notes(),
+        Commands::Recent => open_recent_file(),
     }
 }
