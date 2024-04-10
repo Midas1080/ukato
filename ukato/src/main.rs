@@ -2,6 +2,7 @@ use clap::{Args, Parser, Subcommand};
 use console::Style;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 use serde_derive::{Deserialize, Serialize};
+use dirs;
 use std::fs;
 
 /// Simple CLI to create and manage notes using your favorite text editor.
@@ -88,10 +89,34 @@ struct Config {
 impl ::std::default::Default for Config {
     fn default() -> Self {
         Self {
-            directory: ".".to_string(),
+            directory: "~/notes".to_string(),
             editor: "vim".to_string(),
         }
     }
+}
+
+fn ensure_dir(path: &String){
+    let path = std::path::Path::new(&path);
+    if !std::path::Path::is_dir(path){
+        match std::fs::create_dir(path) {
+            Ok(_) => {},
+            Err(err) => println!("Error creating directory: {}", err),
+        }
+    }
+}
+
+fn expand_path(path: &String) -> String {
+    let expanded_path = if path.contains('~') {
+        let home_dir = dirs::home_dir().unwrap();
+        path.replace("~", home_dir.to_str().unwrap())
+    } else {
+        path.to_owned()
+    };
+    return expanded_path
+}
+
+fn validate_config(config: &Config){
+    ensure_dir(&config.directory);
 }
 
 fn init_config() {
@@ -104,11 +129,12 @@ fn init_config() {
 
     println!("Welcome to the setup wizard");
 
-    let directory = Input::with_theme(&theme)
+    let mut directory = Input::with_theme(&theme)
         .with_prompt("Notes directory")
         .with_initial_text(cfg.directory)
         .interact_text()
         .unwrap();
+    directory = expand_path(&directory);
 
     let items = &["vim", "nano", "emacs", "micro"];
 
@@ -123,7 +149,7 @@ fn init_config() {
         directory: directory,
         editor: items[editor_index].to_string(),
     };
-
+    validate_config(&my_config);
     confy::store("ukato", None, my_config).unwrap();
 }
 
