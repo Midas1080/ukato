@@ -39,6 +39,7 @@ fn create_or_open_file(args: Create) {
     } else {
         let extension = ".md".to_string();
         full_path = path.join([args.name, extension].join(""));
+        std::fs::File::create(&full_path).unwrap();
     }
 
     if !std::path::Path::is_dir(path) {
@@ -106,7 +107,7 @@ fn init_config() {
     let directory = Input::with_theme(&theme)
         .with_prompt("Notes directory")
         .with_initial_text(cfg.directory)
-        .interact()
+        .interact_text()
         .unwrap();
 
     let items = &["vim", "nano", "emacs"];
