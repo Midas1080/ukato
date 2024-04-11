@@ -1,8 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use console::Style;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
-use serde_derive::{Deserialize, Serialize};
 use dirs;
+use serde_derive::{Deserialize, Serialize};
 use std::io::Result;
 use std::path::{Path, PathBuf};
 use std::{env, fs};
@@ -97,11 +97,11 @@ impl ::std::default::Default for Config {
     }
 }
 
-fn ensure_dir(path: &String){
+fn ensure_dir(path: &String) {
     let path = std::path::Path::new(&path);
-    if !std::path::Path::is_dir(path){
+    if !std::path::Path::is_dir(path) {
         match std::fs::create_dir(path) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(err) => println!("Error creating directory: {}", err),
         }
     }
@@ -114,10 +114,10 @@ fn expand_path(path: &String) -> String {
     } else {
         path.to_owned()
     };
-    return expanded_path
+    return expanded_path;
 }
 
-fn validate_config(config: &Config){
+fn validate_config(config: &Config) {
     ensure_dir(&config.directory);
 }
 
@@ -156,16 +156,16 @@ fn init_config() {
 
     // Create a dir for templates
     let template_dir = std::path::Path::new(&cfg.directory).join("templates");
-    println!("{}", template_dir.display());
-    std::fs::create_dir(&template_dir).expect("failed to create dir");
+
+    if !std::path::Path::is_dir(&template_dir) {
+        std::fs::create_dir(&template_dir).expect("failed to create dir");
+    }
 
     // Get the current working directory
     let current_dir = env::current_dir().unwrap();
-    println!("{}", current_dir.display());
 
     // Path to where templates are stored in ukato
     let template_source_path = &current_dir.join("src/templates");
-    println!("{}", template_source_path.display());
 
     // Copy templates to local dir
     match copy_templates_to_local(&template_source_path, &template_dir) {
