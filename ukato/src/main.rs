@@ -3,7 +3,9 @@ use console::Style;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 use serde_derive::{Deserialize, Serialize};
 use dirs;
-use std::fs;
+use std::io::Result;
+use std::path::{Path, PathBuf};
+use std::{env, fs};
 
 /// Simple CLI to create and manage notes using your favorite text editor.
 #[derive(Parser)]
@@ -131,7 +133,7 @@ fn init_config() {
 
     let mut directory = Input::with_theme(&theme)
         .with_prompt("Notes directory")
-        .with_initial_text(cfg.directory)
+        .with_initial_text(&cfg.directory)
         .interact_text()
         .unwrap();
     directory = expand_path(&directory);
@@ -151,6 +153,39 @@ fn init_config() {
     };
     validate_config(&my_config);
     confy::store("ukato", None, my_config).unwrap();
+
+    // Create a dir for templates
+    let template_dir = std::path::Path::new(&cfg.directory).join("templates");
+    println!("{}", template_dir.display());
+    std::fs::create_dir(&template_dir).expect("failed to create dir");
+
+    // Get the current working directory
+    let current_dir = env::current_dir().unwrap();
+    println!("{}", current_dir.display());
+
+    // Path to where templates are stored in ukato
+    let template_source_path = &current_dir.join("src/templates");
+    println!("{}", template_source_path.display());
+
+    // Copy templates to local dir
+    match copy_templates_to_local(&template_source_path, &template_dir) {
+        Ok(_) => println!("Templates copied successfully!"),
+        Err(err) => println!("Error copying templates: {}", err),
+    }
+}
+
+fn copy_templates_to_local(source_path: &Path, destination_dir: &Path) -> Result<()> {
+    for entry in fs::read_dir(source_path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() {
+            let mut destination_path = PathBuf::from(destination_dir);
+            destination_path.push(path.file_name().unwrap().to_str().unwrap());
+            fs::copy(path, destination_path)?;
+        }
+    }
+    Ok(())
 }
 
 fn list_notes() {
