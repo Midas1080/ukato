@@ -3,7 +3,7 @@ use console::Style;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
 use dirs;
 use serde_derive::{Deserialize, Serialize};
-use std::io::Result;
+use std::io::{Read, Result, Write};
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
@@ -36,13 +36,27 @@ fn create_or_open_file(args: Create) {
     let cfg: Config = confy::load("ukato", None).unwrap();
     let path = std::path::Path::new(&cfg.directory);
     let full_path;
+    let source_file = std::path::Path::new(&cfg.directory).join("templates/basic.md");
+
+    // Read source file content
+    let mut source_content = String::new();
+    match fs::File::open(source_file) {
+        Ok(mut file) => {
+            file.read_to_string(&mut source_content)
+                .expect("Error reading source file");
+        }
+        Err(_) => println!("Source file not found, creating empty new file"),
+    }
 
     if args.name.ends_with(".md") {
         full_path = path.join(args.name);
     } else {
         let extension = ".md".to_string();
         full_path = path.join([args.name, extension].join(""));
-        std::fs::File::create(&full_path).unwrap();
+        let mut new_file = fs::File::create(&full_path).unwrap();
+        new_file
+            .write_all(source_content.as_bytes())
+            .expect("Error writing to new file");
     }
 
     if !std::path::Path::is_dir(path) {
