@@ -69,6 +69,7 @@ fn create_or_open_file(args: Create) {
     let path = std::path::Path::new(&cfg.directory);
     let full_path;
     let source_file = std::path::Path::new(&cfg.directory).join("templates/basic.md");
+    let title = args.name.clone();
 
     // Read source file content
     let mut source_content = String::new();
@@ -85,10 +86,26 @@ fn create_or_open_file(args: Create) {
     } else {
         let extension = ".md".to_string();
         full_path = path.join([args.name, extension].join(""));
-        let mut new_file = fs::File::create(&full_path).unwrap();
-        new_file
-            .write_all(source_content.as_bytes())
-            .expect("Error writing to new file");
+
+        if !std::path::Path::exists(&full_path) {
+            // Replace placeholders in template
+            let mut content_with_title =
+                source_content.replace("# Title", format!("# {}", title).as_str());
+            let current_date = chrono::Local::now().format("%Y-%m-%d").to_string();
+            content_with_title = content_with_title.replace("creation_date", &current_date);
+
+            // Write content to new file
+            let mut new_file = fs::File::create(&full_path).unwrap();
+            new_file
+                .write_all(content_with_title.as_bytes())
+                .expect("Error writing to new file");
+        } else {
+            // Handle existing file (e.g., print a message)
+            println!(
+                "File '{}' already exists. Skipping creation.",
+                full_path.display()
+            );
+        }
     }
 
     if !std::path::Path::is_dir(path) {
