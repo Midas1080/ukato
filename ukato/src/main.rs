@@ -20,6 +20,8 @@ enum Commands {
     Init,
     /// Creates a new note
     Create(Create),
+    /// Create new template
+    Template(Create),
     /// Get list of notes
     List,
     /// Get most recent note
@@ -30,6 +32,36 @@ enum Commands {
 struct Create {
     /// The path to the file to create
     name: String,
+}
+
+fn create_template(args: Create) {
+    let cfg: Config = confy::load("ukato", None).unwrap();
+    let path = std::path::Path::new(&cfg.directory).join("templates");
+    let full_path;
+
+    if args.name.ends_with(".md") {
+        full_path = path.join(args.name);
+    } else {
+        let extension = ".md".to_string();
+        full_path = path.join([args.name, extension].join(""));
+        fs::File::create(&full_path).unwrap();
+    }
+
+    if !std::path::Path::is_dir(&path) {
+        std::fs::create_dir(&path).unwrap();
+    }
+
+    let mut viewer_handle = std::process::Command::new("inlyne")
+        .arg(full_path.clone())
+        .spawn()
+        .unwrap();
+
+    std::process::Command::new(cfg.editor)
+        .arg(full_path.clone())
+        .status()
+        .expect("Something went wrong.");
+
+    let _ = viewer_handle.kill();
 }
 
 fn create_or_open_file(args: Create) {
@@ -209,7 +241,12 @@ fn list_notes() {
     let paths = fs::read_dir(dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|entry| {
+            let binding = entry.file_name();
+            let path = binding.to_string_lossy();
+            path.ends_with(".md")
+        })
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .collect::<Vec<_>>();
 
     let theme = ColorfulTheme {
@@ -236,5 +273,6 @@ fn main() {
         Commands::Create(args) => create_or_open_file(args),
         Commands::List => list_notes(),
         Commands::Recent => open_recent_file(),
+        Commands::Template(args) => create_template(args),
     }
 }
