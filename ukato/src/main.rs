@@ -19,7 +19,7 @@ enum Commands {
     /// Initializes your note-taking app
     Init,
     /// Creates a new note
-    Create(Create),
+    Create(CreateSubcommand),
     /// Create new template
     Template(Create),
     /// Get list of notes
@@ -32,6 +32,15 @@ enum Commands {
 struct Create {
     /// The path to the file to create
     name: String,
+    template: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct CreateSubcommand {
+    name: String,
+    /// template flag for creating the note
+    #[clap(short = 't', long = "template")]
+    template: Option<String>,
 }
 
 fn create_template(args: Create) {
@@ -68,17 +77,30 @@ fn create_or_open_file(args: Create) {
     let cfg: Config = confy::load("ukato", None).unwrap();
     let path = std::path::Path::new(&cfg.directory);
     let full_path;
-    let source_file = std::path::Path::new(&cfg.directory).join("templates/basic.md");
     let title = args.name.clone();
 
-    // Read source file content
+    // Define template path based on flag
+    let template_path = match args.template {
+        Some(template) => {
+            let full_template_path = path.join("templates").join(format!("{}.md", template));
+            if std::path::Path::exists(&full_template_path) {
+                full_template_path
+            } else {
+                eprintln!("Error: Template '{}' not found. Using default.", template);
+                path.join("templates/basic.md")
+            }
+        }
+        None => path.join("templates/basic.md"),
+    };
+
+    // Read template
     let mut source_content = String::new();
-    match fs::File::open(source_file) {
+    match fs::File::open(template_path) {
         Ok(mut file) => {
             file.read_to_string(&mut source_content)
                 .expect("Error reading source file");
         }
-        Err(_) => println!("Source file not found, creating empty new file"),
+        Err(_) => println!("Template file not found, using default"),
     }
 
     if args.name.ends_with(".md") {
@@ -100,7 +122,6 @@ fn create_or_open_file(args: Create) {
                 .write_all(content_with_title.as_bytes())
                 .expect("Error writing to new file");
         } else {
-            // Handle existing file (e.g., print a message)
             println!(
                 "File '{}' already exists. Skipping creation.",
                 full_path.display()
@@ -141,6 +162,7 @@ fn open_recent_file() {
 
     create_or_open_file(Create {
         name: last_modified_file,
+        template: None,
     })
 }
 
@@ -279,6 +301,7 @@ fn list_notes() {
 
     create_or_open_file(Create {
         name: paths[note_index].clone(),
+        template: None,
     })
 }
 
@@ -287,7 +310,10 @@ fn main() {
 
     match cli.command {
         Commands::Init => init_config(),
-        Commands::Create(args) => create_or_open_file(args),
+        Commands::Create(create_subcommand) => create_or_open_file(Create {
+            name: create_subcommand.name,
+            template: create_subcommand.template,
+        }),
         Commands::List => list_notes(),
         Commands::Recent => open_recent_file(),
         Commands::Template(args) => create_template(args),
