@@ -23,7 +23,9 @@ enum Commands {
     /// Create new template
     Template(Create),
     /// Get list of notes
-    List,
+    ListNotes,
+    /// Get list of templates
+    ListTemplates,
     /// Get most recent note
     Recent,
 }
@@ -273,17 +275,28 @@ fn copy_templates_to_local(source_path: &Path, destination_dir: &Path) -> Result
     Ok(())
 }
 
-fn list_notes() {
+fn list_notes(show_templates: bool) {
     let cfg: Config = confy::load("ukato", None).unwrap();
     let dir = std::path::Path::new(&cfg.directory);
 
-    let paths = fs::read_dir(dir)
+    let folder_path = if show_templates {
+        dir.join("templates") // Path to templates folder
+    } else {
+        dir.to_owned() // Path to notes directory (base_dir itself)
+    };
+
+    let paths = fs::read_dir(folder_path)
         .unwrap()
         .filter_map(|e| e.ok())
         .filter(|entry| {
             let binding = entry.file_name();
             let path = binding.to_string_lossy();
-            path.ends_with(".md")
+            if show_templates {
+                entry.file_type().is_ok() && entry.file_type().unwrap().is_dir()
+                    || path.ends_with(".md")
+            } else {
+                path.ends_with(".md")
+            }
         })
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
         .collect::<Vec<_>>();
@@ -292,8 +305,14 @@ fn list_notes() {
         values_style: Style::new().yellow().dim(),
         ..ColorfulTheme::default()
     };
+
+    let prompt_text = if show_templates {
+        "Your templates:"
+    } else {
+        "Your notes:"
+    };
     let note_index = Select::with_theme(&theme)
-        .with_prompt("Your notes:")
+        .with_prompt(prompt_text)
         .default(0)
         .items(&paths[..])
         .interact()
@@ -314,7 +333,8 @@ fn main() {
             name: create_subcommand.name,
             template: create_subcommand.template,
         }),
-        Commands::List => list_notes(),
+        Commands::ListNotes => list_notes(false),
+        Commands::ListTemplates => list_notes(true),
         Commands::Recent => open_recent_file(),
         Commands::Template(args) => create_template(args),
     }
