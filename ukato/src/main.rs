@@ -46,7 +46,7 @@ struct CreateSubcommand {
 }
 
 fn create_template(args: Create) {
-    let cfg: Config = confy::load("ukato", None).unwrap();
+    let cfg: Config = confy::load("ukato", None).expect("Unable to load Ukato config");
     let path = std::path::Path::new(&cfg.directory).join("templates");
     let full_path;
 
@@ -55,11 +55,16 @@ fn create_template(args: Create) {
     } else {
         let extension = ".md".to_string();
         full_path = path.join([args.name, extension].join(""));
-        fs::File::create(&full_path).unwrap();
+        let _ = fs::File::create(&full_path);
     }
 
     if !std::path::Path::is_dir(&path) {
-        std::fs::create_dir(&path).unwrap();
+        match std::fs::create_dir(&path) {
+            Ok(_) => {} // if directory is created, all good
+            Err(err) => {
+                eprintln!("Error creating directory {}", err);
+            }
+        }
     }
 
     let mut viewer_handle = std::process::Command::new("inlyne")
@@ -76,7 +81,7 @@ fn create_template(args: Create) {
 }
 
 fn create_or_open_file(args: Create) {
-    let cfg: Config = confy::load("ukato", None).unwrap();
+    let cfg: Config = confy::load("ukato", None).expect("Unable to load Ukato config");
     let path = std::path::Path::new(&cfg.directory);
     let full_path;
     let title = args.name.clone();
@@ -119,7 +124,7 @@ fn create_or_open_file(args: Create) {
             content_with_title = content_with_title.replace("creation_date", &current_date);
 
             // Write content to new file
-            let mut new_file = fs::File::create(&full_path).unwrap();
+            let mut new_file = fs::File::create(&full_path).expect("Failed to create file");
             new_file
                 .write_all(content_with_title.as_bytes())
                 .expect("Error writing to new file");
@@ -131,8 +136,13 @@ fn create_or_open_file(args: Create) {
         }
     }
 
-    if !std::path::Path::is_dir(path) {
-        std::fs::create_dir(path).unwrap();
+    if !std::path::Path::is_dir(&path) {
+        match std::fs::create_dir(&path) {
+            Ok(_) => {} // if directory is created, all good
+            Err(err) => {
+                eprintln!("Error creating directory {}", err);
+            }
+        }
     }
 
     let mut viewer_handle = std::process::Command::new("inlyne")
@@ -149,15 +159,20 @@ fn create_or_open_file(args: Create) {
 }
 
 fn open_recent_file() {
-    let cfg: Config = confy::load("ukato", None).unwrap();
+    let cfg: Config = confy::load("ukato", None).expect("Unable to load Ukato config");
     let path = std::path::Path::new(&cfg.directory);
 
     let last_modified_file = std::fs::read_dir(path)
         .expect("Couldn't access local directory")
         .flatten() // Remove failed
         .filter(|f| f.metadata().unwrap().is_file()) // Filter out directories (only consider files)
-        .max_by_key(|x| x.metadata().unwrap().modified().unwrap()) // Get the most recently modified file
-        .unwrap()
+        .max_by_key(|x| {
+            x.metadata()
+                .expect("Failed to get metadata")
+                .modified()
+                .expect("Failed to get modified time")
+        }) // Get the most recently modified file
+        .expect("No files found in directory")
         .file_name()
         .to_string_lossy()
         .into_owned();
@@ -184,7 +199,7 @@ impl ::std::default::Default for Config {
     }
 }
 
-fn ensure_dir(path: &String) {
+fn ensure_dir(path: &str) {
     let path = std::path::Path::new(&path);
     if !std::path::Path::is_dir(path) {
         match std::fs::create_dir(path) {
@@ -214,7 +229,7 @@ fn init_config() {
         ..ColorfulTheme::default()
     };
 
-    let cfg: Config = confy::load("ukato", None).unwrap();
+    let cfg: Config = confy::load("ukato", None).expect("Unable to load Ukato config");
 
     println!("Welcome to the setup wizard");
 
@@ -222,7 +237,8 @@ fn init_config() {
         .with_prompt("Notes directory")
         .with_initial_text(&cfg.directory)
         .interact_text()
-        .unwrap();
+        .expect("Failed to select directory");
+
     directory = expand_path(&directory);
 
     let items = &["vim", "nano", "emacs", "micro"];
@@ -232,14 +248,15 @@ fn init_config() {
         .default(0)
         .items(&items[..])
         .interact()
-        .unwrap();
+        .expect("Failed to select editor");
 
     let my_config = Config {
         directory: directory,
         editor: items[editor_index].to_string(),
     };
+
     validate_config(&my_config);
-    confy::store("ukato", None, my_config).unwrap();
+    confy::store("ukato", None, my_config).expect("Failed to store config");
 
     // Create a dir for templates
     let template_dir = std::path::Path::new(&cfg.directory).join("templates");
@@ -249,7 +266,7 @@ fn init_config() {
     }
 
     // Get the current working directory
-    let current_dir = env::current_dir().unwrap();
+    let current_dir = env::current_dir().expect("Failed to get the current directory");
 
     // Path to where templates are stored in ukato
     let template_source_path = &current_dir.join("src/templates");
@@ -276,7 +293,7 @@ fn copy_templates_to_local(source_path: &Path, destination_dir: &Path) -> Result
 }
 
 fn list_notes(show_templates: bool) {
-    let cfg: Config = confy::load("ukato", None).unwrap();
+    let cfg: Config = confy::load("ukato", None).expect("Unable to load Ukato config");
     let dir = std::path::Path::new(&cfg.directory);
 
     let folder_path = if show_templates {
@@ -316,7 +333,7 @@ fn list_notes(show_templates: bool) {
         .default(0)
         .items(&paths[..])
         .interact()
-        .unwrap();
+        .expect("Failed to get notes");
 
     create_or_open_file(Create {
         name: paths[note_index].clone(),
