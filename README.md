@@ -45,10 +45,10 @@ After installation, you can use Ukato from the command line. Here are some commo
 
 - `ukato init`: Initialize Ukato and configure your notes directory and preferred text editor.
 - `ukato create <note-name>`: Create a new note with the specified name.
+- `ukato template <template-name>`: Create a new template with the specified name.
 - `ukato list-notes`: List all existing notes.
 - `ukato list-templates`: List all available templates.
 - `ukato recent`: Open the most recently modified note.
-- `ukato template <template-name>`: Create a new template with the specified name.
 
 For more detailed usage instructions and options, run `ukato --help`.
 
@@ -58,7 +58,7 @@ Ukato allows you to configure your notes directory and preferred text editor. Yo
 
 ## Contributing
 
-We are Rust noobs on our way to become full fledged, coconut-oiled up Crustaceans, so contributions to Ukato are welcome! If you find any bugs or have suggestions for improvements, please open an issue or submit a pull request.
+We are Rust noobs on our way to become full fledged, coconut-oiled, blue-haired Rustaceans, so contributions to Ukato are welcome! If you find any bugs or have suggestions for improvements, please open an issue or submit a pull request.
 
 ## Next steps
 
