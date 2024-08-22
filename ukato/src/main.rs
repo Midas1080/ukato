@@ -30,6 +30,12 @@ enum Commands {
     Recent,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct Config {
+    directory: String,
+    editor: String,
+}
+
 #[derive(Args, Debug)]
 struct Create {
     /// The path to the file to create
@@ -46,7 +52,16 @@ struct CreateSubcommand {
 }
 
 fn create_template(args: Create) {
-    let cfg: Config = confy::load("ukato", None).expect("Unable to load Ukato config");
+    let cfg = match confy::load::<Config>("ukato", None) {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            eprintln!(
+                "Error: No config found, did you run the init function? {}",
+                err
+            );
+            return;
+        }
+    };
     let path = std::path::Path::new(&cfg.directory).join("templates");
     let full_path;
 
@@ -62,7 +77,8 @@ fn create_template(args: Create) {
         match std::fs::create_dir(&path) {
             Ok(_) => {} // if directory is created, all good
             Err(err) => {
-                eprintln!("Error creating directory {}", err);
+                eprintln!("Error: {}. Did you run the init function?", err);
+                return;
             }
         }
     }
@@ -81,7 +97,19 @@ fn create_template(args: Create) {
 }
 
 fn create_or_open_file(args: Create) {
-    let cfg: Config = confy::load("ukato", None).expect("Unable to load Ukato config");
+    // let cfg: Config = confy::load("ukato", None).expect("Unable to load Ukato config");
+
+    let cfg = match confy::load::<Config>("ukato", None) {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!(
+                "Error: No config found, did you run the init function? {}",
+                err
+            );
+            return;
+        }
+    };
+
     let path = std::path::Path::new(&cfg.directory);
     let full_path;
     let title = args.name.clone();
@@ -93,7 +121,7 @@ fn create_or_open_file(args: Create) {
             if std::path::Path::exists(&full_template_path) {
                 full_template_path
             } else {
-                eprintln!("Error: Template '{}' not found. Using default.", template);
+                eprintln!("Warning: Template '{}' not found. Using default.", template);
                 path.join("templates/basic.md")
             }
         }
@@ -107,7 +135,9 @@ fn create_or_open_file(args: Create) {
             file.read_to_string(&mut source_content)
                 .expect("Error reading source file");
         }
-        Err(_) => println!("Template file not found, using default"),
+        Err(_) => {
+            eprintln!("Error: Template file not found");
+        }
     }
 
     if args.name.ends_with(".md") {
@@ -124,13 +154,21 @@ fn create_or_open_file(args: Create) {
             content_with_title = content_with_title.replace("creation_date", &current_date);
 
             // Write content to new file
-            let mut new_file = fs::File::create(&full_path).expect("Failed to create file");
-            new_file
-                .write_all(content_with_title.as_bytes())
-                .expect("Error writing to new file");
+            match fs::File::create(&full_path) {
+                Ok(_new_file) => {
+                    let mut new_file = fs::File::create(&full_path).unwrap();
+                    new_file
+                        .write_all(content_with_title.as_bytes())
+                        .expect("Error writing to file")
+                }
+                Err(_error) => {
+                    eprintln!("Error: No path was found, did you run the init function?",);
+                    return;
+                }
+            }
         } else {
             println!(
-                "File '{}' already exists. Skipping creation.",
+                "File '{}' already exists. Skipping creation and opening existing file.",
                 full_path.display()
             );
         }
@@ -140,7 +178,8 @@ fn create_or_open_file(args: Create) {
         match std::fs::create_dir(&path) {
             Ok(_) => {} // if directory is created, all good
             Err(err) => {
-                eprintln!("Error creating directory {}", err);
+                eprintln!("Error: Error creating directory {}", err);
+                return;
             }
         }
     }
@@ -150,11 +189,22 @@ fn create_or_open_file(args: Create) {
         .spawn()
         .unwrap();
 
-    std::process::Command::new(cfg.editor)
+    let editor_status = std::process::Command::new(cfg.editor)
         .arg(full_path.clone())
-        .status()
-        .expect("Something went wrong.");
+        .status();
 
+    match editor_status {
+        Ok(status) => {
+            if !status.success() {
+                eprintln!("Error opening editor: {}", status);
+                // Offer alternative approach (e.g., print file path)
+            }
+        }
+        Err(err) => {
+            eprintln!("Error: Failed to spawn editor: {}", err);
+            // Offer alternative approach (e.g., print file path)
+        }
+    }
     let _ = viewer_handle.kill();
 }
 
@@ -181,12 +231,6 @@ fn open_recent_file() {
         name: last_modified_file,
         template: None,
     })
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Config {
-    directory: String,
-    editor: String,
 }
 
 /// `MyConfig` implements `Default`
@@ -273,7 +317,7 @@ fn init_config() {
 
     // Copy templates to local dir
     match copy_templates_to_local(&template_source_path, &template_dir) {
-        Ok(_) => println!("Templates copied successfully!"),
+        Ok(_) => println!("Templates copied successfully. You are ready to start using Ukato!"),
         Err(err) => println!("Error copying templates: {}", err),
     }
 }
@@ -302,21 +346,29 @@ fn list_notes(show_templates: bool) {
         dir.to_owned() // Path to notes directory (base_dir itself)
     };
 
-    let paths = fs::read_dir(folder_path)
-        .unwrap()
-        .filter_map(|e| e.ok())
-        .filter(|entry| {
-            let binding = entry.file_name();
-            let path = binding.to_string_lossy();
-            if show_templates {
-                entry.file_type().is_ok() && entry.file_type().unwrap().is_dir()
-                    || path.ends_with(".md")
-            } else {
-                path.ends_with(".md")
-            }
-        })
-        .map(|entry| entry.file_name().to_string_lossy().into_owned())
-        .collect::<Vec<_>>();
+    let paths = match fs::read_dir(folder_path) {
+        Ok(entries) => entries
+            .filter_map(|e| e.ok())
+            .filter(|entry| {
+                let binding = entry.file_name();
+                let path = binding.to_string_lossy();
+                if show_templates {
+                    entry.file_type().is_ok() && entry.file_type().unwrap().is_dir()
+                        || path.ends_with(".md")
+                } else {
+                    path.ends_with(".md")
+                }
+            })
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect::<Vec<_>>(),
+        Err(e) => {
+            eprintln!(
+                "Error reading directory: {}. Did you run the init function?",
+                e
+            );
+            return;
+        }
+    };
 
     let theme = ColorfulTheme {
         values_style: Style::new().yellow().dim(),
@@ -328,6 +380,13 @@ fn list_notes(show_templates: bool) {
     } else {
         "Your notes:"
     };
+
+    if paths.is_empty() {
+        eprintln!(
+            "Error: No notes found, you can create a note by running 'ukato create <note-name>'"
+        );
+        return;
+    }
     let note_index = Select::with_theme(&theme)
         .with_prompt(prompt_text)
         .default(0)
@@ -338,7 +397,16 @@ fn list_notes(show_templates: bool) {
     create_or_open_file(Create {
         name: paths[note_index].clone(),
         template: None,
-    })
+    });
+
+    if !show_templates {
+        create_or_open_file(Create {
+            name: paths[note_index].clone(),
+            template: None,
+        });
+    } else {
+        println!("You selected a template: {}", paths[note_index]);
+    }
 }
 
 fn main() {
