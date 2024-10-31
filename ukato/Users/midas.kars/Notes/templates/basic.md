@@ -1,4 +1,0 @@
-# Title
-*creation_date*
--------------
-
