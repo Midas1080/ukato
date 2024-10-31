@@ -1,5 +1,5 @@
 ---
-title: TITLE
-creation-date: CREATION_DATE
+title: _TITLE_
+creation-date: _CREATION_DATE_
 ---
 
