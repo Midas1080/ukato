@@ -1,8 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use console::Style;
 use dialoguer::{theme::ColorfulTheme, Input, Select};
-use serde_derive::{Deserialize, Serialize};
 use dirs;
+use serde_derive::{Deserialize, Serialize};
 use std::fs;
 
 /// Simple CLI to create and manage notes using your favorite text editor.
@@ -95,11 +95,11 @@ impl ::std::default::Default for Config {
     }
 }
 
-fn ensure_dir(path: &String){
+fn ensure_dir(path: &String) {
     let path = std::path::Path::new(&path);
-    if !std::path::Path::is_dir(path){
+    if !std::path::Path::is_dir(path) {
         match std::fs::create_dir(path) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(err) => println!("Error creating directory: {}", err),
         }
     }
@@ -112,10 +112,10 @@ fn expand_path(path: &String) -> String {
     } else {
         path.to_owned()
     };
-    return expanded_path
+    return expanded_path;
 }
 
-fn validate_config(config: &Config){
+fn validate_config(config: &Config) {
     ensure_dir(&config.directory);
 }
 
