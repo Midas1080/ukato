@@ -15,6 +15,11 @@ Also, in the endangered Kwazinian language of the people of Rondônia, Brazil, '
 
 To install Ukato, follow these steps:
 
+0. Install dependency
+   ```bash
+   cargo install inlyne
+   ```
+
 1. Clone the repository:
 
     ```bash
