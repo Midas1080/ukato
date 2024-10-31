@@ -1,5 +1,4 @@
----
-title: _TITLE_
-creation-date: _CREATION_DATE_
----
+# Title
+*creation_date*
+-------------
 

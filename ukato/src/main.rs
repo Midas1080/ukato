@@ -149,9 +149,9 @@ fn create_or_open_file(args: Create) {
         if !std::path::Path::exists(&full_path) {
             // Replace placeholders in template
             let mut content_with_title =
-                source_content.replace("_TITLE_", format!("# {}", title).as_str());
+                source_content.replace("# Title", format!("# {}", title).as_str());
             let current_date = chrono::Local::now().format("%Y-%m-%d").to_string();
-            content_with_title = content_with_title.replace("_CREATION_DATE_", &current_date);
+            content_with_title = content_with_title.replace("creation_date", &current_date);
 
             // Write content to new file
             match fs::File::create(&full_path) {
