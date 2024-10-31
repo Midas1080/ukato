@@ -306,7 +306,7 @@ fn init_config() {
     let template_dir = std::path::Path::new(&cfg.directory).join("templates");
 
     if !std::path::Path::is_dir(&template_dir) {
-        std::fs::create_dir(&template_dir).expect("failed to create dir");
+        std::fs::create_dir_all(&template_dir).expect("failed to create template dir");
     }
 
     // Get the current working directory
