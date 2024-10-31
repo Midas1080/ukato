@@ -149,9 +149,9 @@ fn create_or_open_file(args: Create) {
         if !std::path::Path::exists(&full_path) {
             // Replace placeholders in template
             let mut content_with_title =
-                source_content.replace("# Title", format!("# {}", title).as_str());
+                source_content.replace("TITLE", format!("# {}", title).as_str());
             let current_date = chrono::Local::now().format("%Y-%m-%d").to_string();
-            content_with_title = content_with_title.replace("creation_date", &current_date);
+            content_with_title = content_with_title.replace("CREATION_DATE", &current_date);
 
             // Write content to new file
             match fs::File::create(&full_path) {
@@ -341,9 +341,9 @@ fn list_notes(show_templates: bool) {
     let dir = std::path::Path::new(&cfg.directory);
 
     let folder_path = if show_templates {
-        dir.join("templates") // Path to templates folder
+        dir.join("templates")   // Path to templates directory
     } else {
-        dir.to_owned() // Path to notes directory (base_dir itself)
+        dir.to_path_buf() // Path to notes directory (base_dir itself)
     };
 
     let paths = match fs::read_dir(folder_path) {
@@ -387,6 +387,7 @@ fn list_notes(show_templates: bool) {
         );
         return;
     }
+
     let note_index = Select::with_theme(&theme)
         .with_prompt(prompt_text)
         .default(0)
@@ -394,19 +395,17 @@ fn list_notes(show_templates: bool) {
         .interact()
         .expect("Failed to get notes");
 
+
+    let note_path = if show_templates {
+            format!("templates/{}", paths[note_index])
+        } else {
+            paths[note_index].clone()
+        };
+    
     create_or_open_file(Create {
-        name: paths[note_index].clone(),
+        name: note_path,
         template: None,
     });
-
-    if !show_templates {
-        create_or_open_file(Create {
-            name: paths[note_index].clone(),
-            template: None,
-        });
-    } else {
-        println!("You selected a template: {}", paths[note_index]);
-    }
 }
 
 fn main() {
